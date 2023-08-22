@@ -1,0 +1,15 @@
+version: '3.4'
+
+services:
+  transroza.webapi:
+    image: ${DOCKER_REGISTRY-}transrozawebapi
+    build:
+      context: .
+      dockerfile: TransRoza.WebApi/Dockerfile
+
+  transroza.blazorapp.server:
+    image: ${DOCKER_REGISTRY-}transrozablazorappserver
+    build:
+      context: .
+      dockerfile: TransRoza.BlazorApp/Server/Dockerfile
+
