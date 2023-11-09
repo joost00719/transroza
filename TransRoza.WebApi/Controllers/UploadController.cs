@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using TransRoza.Shared;
+using TransRoza.WebApi.Services;
 
 namespace TransRoza.WebApi.Controllers
 {
@@ -7,24 +8,38 @@ namespace TransRoza.WebApi.Controllers
     [Route("[controller]")]
     public class UploadController : ControllerBase
     {
-        [HttpPost(Name = "CreateHandle")]
-        public Guid CreateFileHandle(RozaFileInformation fileInfo)
+        public UploadController(FileProcessingService fileUploadService)
         {
-            fileInfo.Handle = Guid.NewGuid();
+            this.fileUploadService = fileUploadService;
+        }
+
+        private readonly FileProcessingService fileUploadService;
+
+        [HttpPost]
+        [Route("CreateHandle")]
+        public ActionResult<Guid> CreateFileHandle(RozaFileInformation fileInfo)
+        {
+            if (fileInfo is null)
+            {
+                return BadRequest();
+            }
+
+            fileUploadService.CreateFileHandle(fileInfo);
 
             return fileInfo.Handle.Value;
         }
 
-        [HttpPatch(Name = "UploadChunk/{handle}/{beginInclusive}/{endInclusive}")]
+        [HttpPatch]
+        [Route("UploadChunk/{handle}/{beginInclusive}")]
         public async Task<IActionResult> UploadChunk([FromQuery] Guid handle, [FromQuery] int beginInclusive, [FromBody] Stream data)
         {
-            Directory.CreateDirectory("/data/uploads");
-
-            using (var fs = System.IO.File.OpenWrite($@"/data/uploads/{handle}.txt"))
+            try
             {
-                fs.Seek(beginInclusive, SeekOrigin.Begin);
-                await data.CopyToAsync(fs);
-                await fs.FlushAsync();
+                await fileUploadService.UploadChunkAsync(handle, beginInclusive, data);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound();
             }
 
             return Ok();

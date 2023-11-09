@@ -1,5 +1,7 @@
 
+using TransRoza.WebApi.Hubs;
 using TransRoza.WebApi.ModelBinders.Stream;
+using TransRoza.WebApi.Services;
 
 namespace TransRoza.WebApi
 {
@@ -19,6 +21,9 @@ namespace TransRoza.WebApi
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+            builder.Services.AddSignalR();
+
+            builder.Services.AddSingleton<FileProcessingService>();
 
             var app = builder.Build();
 
@@ -35,6 +40,9 @@ namespace TransRoza.WebApi
 
 
             app.MapControllers();
+
+            app.MapHub<UploadHub>("/Hubs/UploadHub");
+
 
             app.Run();
         }
