@@ -1,9 +1,132 @@
 ﻿@page "/"
+@using System.IO
+@using TransRoza.FileHandling;
+@inject IWebHostEnvironment env
+@inject Class1 fileHandler
 
-<PageTitle>Index</PageTitle>
+<h1 class="mb-4">Blazor Server File Upload</h1>
 
-<h1>Hello, world!</h1>
+<div class="@AlertClass" role="alert">
+    @AlertMessage
+</div>
 
-Welcome to your new app.
+<div class="progress mb-3" style="height: 20px;">
+    <div class="progress-bar" role="progressbar" style="width: @ProgressPercentage%;" aria-valuenow="@ProgressPercentage" aria-valuemin="0" aria-valuemax="100">@ProgressPercentage% Complete</div>
+</div>
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+<form @onsubmit="OnSubmit" class="needs-validation" novalidate>
+    <div class="input-group mb-3">
+        <InputFile @key=@(inputFileId) class="form-control" id="inputFile" OnChange="OnInputFileChange" aria-describedby="uploadButton" required />
+        <button class="btn btn-primary" type="submit" id="uploadButton" disabled="@IsUploadDisabled">
+            <span class="oi oi-cloud-upload" aria-hidden="true"></span> Upload Selected File
+        </button>
+    </div>
+    <div class="invalid-feedback">
+        Please select a file to upload.
+    </div>
+</form>
+
+<b>@performanceString</b>
+
+@code {
+    MarkupString AlertMessage = new MarkupString("<strong>No file selected</strong>");
+    string AlertClass = "alert alert-info";
+    int ProgressPercentage = 0;
+    IBrowserFile selectedFile;
+    long maxFileSize = long.MaxValue; // 1024L * 1024L * 1024L * 2L;
+    string[] allowedExtensions = { ".zip", ".rar", ".bin" };
+    bool IsUploadDisabled = true;
+    private Guid inputFileId = Guid.NewGuid();
+    private string? performanceString;
+
+    private void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.GetMultipleFiles()[0];
+        ProgressPercentage = 0;
+        IsUploadDisabled = true;
+
+        if (selectedFile.Size > maxFileSize)
+        {
+            SetAlert("alert alert-danger", "oi oi-ban", $"File size exceeds the limit. Maximum allowed size is <strong>{maxFileSize / (1024 * 1024)} MB</strong>.");
+            return;
+        }
+
+        if (!allowedExtensions.Contains(Path.GetExtension(selectedFile.Name).ToLowerInvariant()))
+        {
+            SetAlert("alert alert-danger", "oi oi-warning", $"Invalid file type. Allowed file types are <strong>{string.Join(", ", allowedExtensions)}</strong>.");
+            return;
+        }
+
+        SetAlert("alert alert-info", "oi oi-info", $"<strong>{selectedFile.Name}</strong> ({selectedFile.Size} bytes) file selected.");
+        IsUploadDisabled = false;
+    }
+
+    private async void OnSubmit()
+    {
+        if (selectedFile != null)
+        {
+            IsUploadDisabled = true;
+            Stream stream = selectedFile.OpenReadStream(maxFileSize);
+            using FileStream fs = fileHandler.Test(selectedFile.Name);
+
+            // Set buffer size to 512 KB.
+            int bufferSize = 512 * 1024;
+            byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(bufferSize);
+            int bytesRead;
+            long totalBytesRead = 0;
+            long fileSize = selectedFile.Size;
+            DateTime startDate = DateTime.Now;
+
+            // Use a timer to update the UI every few hundred milliseconds.
+            using var timer = new Timer(_ =>
+            {
+                SetPerformanceString(startDate, totalBytesRead, fileSize);
+                InvokeAsync(() => StateHasChanged());
+            });
+
+            timer.Change(TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
+
+            try
+            {
+                while ((bytesRead = await stream.ReadAsync(buffer)) != 0)
+                {
+                    totalBytesRead += bytesRead;
+                    ProgressPercentage = (int)(100 * totalBytesRead / fileSize);
+                    fs.Write(buffer, 0, bytesRead);
+                }
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+            }
+
+            // Stop the timer and update the UI with the final progress.
+            timer.Change(Timeout.Infinite, Timeout.Infinite);
+            ProgressPercentage = 100;
+            SetAlert("alert alert-success", "oi oi-check", $"<strong>{selectedFile.Name}</strong> ({selectedFile.Size} bytes) file uploaded on server.");
+            inputFileId = Guid.NewGuid();
+            this.StateHasChanged();
+        }
+    }
+
+    private void SetAlert(string alertClass, string iconClass, string message)
+    {
+        AlertClass = alertClass;
+        AlertMessage = new MarkupString($"<span class='{iconClass}' aria-hidden='true'></span> {message}");
+    }
+
+    private void SetPerformanceString(DateTime dateTime, long readBytes, long totalBytes)
+    {
+        var elapsedSeconds = (DateTime.Now - dateTime).TotalSeconds;
+        if (elapsedSeconds > 1)
+        {
+            var speed = readBytes / (long)elapsedSeconds;
+            var speedInMegabytes = FileSizeHelper.BytesToMegaBytes(speed);
+            var remainingSeconds = (totalBytes - readBytes) / speed;
+            var remainingTime = TimeSpan.FromSeconds(remainingSeconds);
+
+            performanceString = $"Read {FileSizeHelper.BytesToMegaBytes(readBytes)} MB in {elapsedSeconds:0.00} seconds ({speedInMegabytes:0.00} MB/s). {FileSizeHelper.BytesToMegaBytes(totalBytes - readBytes)} MB remaining. Approximately {remainingTime.Hours:00}:{remainingTime.Minutes:00}:{remainingTime.Seconds:00} remaining.";
+        }
+
+    }
+}

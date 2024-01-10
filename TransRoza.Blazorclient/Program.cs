@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity.UI;
 using Microsoft.EntityFrameworkCore;
 using TransRoza.Blazorclient.Areas.Identity;
 using TransRoza.Blazorclient.Data;
+using TransRoza.FileHandling;
 
 namespace TransRoza.Blazorclient
 {
@@ -26,6 +27,9 @@ namespace TransRoza.Blazorclient
             builder.Services.AddServerSideBlazor();
             builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<IdentityUser>>();
             builder.Services.AddSingleton<WeatherForecastService>();
+
+            builder.Services.AddSingleton(_ => new FileHandlingSettings() { FileStoragePath = Path.Combine("/data") });
+            builder.Services.AddSingleton<Class1>();
 
             var app = builder.Build();
 
