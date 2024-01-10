@@ -5,7 +5,7 @@ VisualStudioVersion = 17.7.34009.444
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TransRoza.Blazorclient", "TransRoza.Blazorclient\TransRoza.Blazorclient.csproj", "{BD956861-D3C1-4858-8378-D67EE93E0962}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TransRoza.FileHandling", "..\TransRoza.FileHandling\TransRoza.FileHandling.csproj", "{7CC4664D-7CDF-44DD-BE0E-D01446F52362}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TransRoza.FileHandling", "TransRoza.FileHandling\TransRoza.FileHandling.csproj", "{7CC4664D-7CDF-44DD-BE0E-D01446F52362}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
